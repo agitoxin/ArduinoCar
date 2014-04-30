@@ -8,7 +8,6 @@ int g_nTRval = 0;
 int g_nTLval = 0;
 int g_nThrs = 100;
 int g_nSensitive = 1000; // Less is more
-int g_nowStat = 0; // 0=stop, 1=foward, 2=backward, 3=left, 4=right
 volatile int g_TStat = 1;
 volatile int g_TLastStat = 0;
 
@@ -29,46 +28,43 @@ void setup() {
   motorR.run(RELEASE);
 }
 
-#define GoFWD \
+#define GoFWD(t) \
     motorR.run(FORWARD); \
     motorL.run(FORWARD); \
-    g_nowStat = 1;
+    delay(t);
 
-#define GoBWD \
+#define GoBWD(t) \
     motorR.run(BACKWARD); \
-    motorL.run(BACKWARD);
-    //g_nowStat = 2;
+    motorL.run(BACKWARD); \
+    delay(t);
     
-#define GoLT \
+#define GoLT(t) \
     motorR.run(RELEASE); \
     motorL.run(BACKWARD); \
-    g_nowStat = 3;
+    delay(t);
     
-#define GoRT \
+#define GoRT(t) \
     motorR.run(BACKWARD); \
     motorL.run(RELEASE); \
-    g_nowStat = 4;
+    delay(t);
 
 boolean ChkStat() {
   g_nTRval = analogRead(pin_TR);
   g_nTLval = analogRead(pin_TL);
-  //Serial.println(g_nTLval);
-  //delay(1000);
   
   g_TLastStat = g_TStat;
+
+  // Set the flag if black
   g_TStat = 0;
   g_TStat |= ((g_nTLval > g_nThrs) << 1);
   g_TStat |= (g_nTRval > g_nThrs);
-  //Serial.print(g_TLastStat);
-  //Serial.print("->");
-  //Serial.println(g_TStat);
-  //delay(1000);
   
   if(g_TLastStat == g_TStat) {
     return false;
   }
   return true;
 }
+
 /*
 void cdelay(int nTime) {
   int i = nTime;
@@ -81,33 +77,29 @@ void cdelay(int nTime) {
   }
 }
 */
+
 void loop() {
-  if(!ChkStat()) {
-    return;
-  }
+  ChkStat();
   
-  //Serial.print("In loop: ");
   //Serial.println(g_TStat);
   //delay(1000);
+
+L_ACT:
   switch(g_TStat) {
-  case 0:
-    GoFWD;
+  case 0: // Error, all white
+    g_TStat = g_TLastStat;
+    goto L_ACT;
     break;
-  case 1:
-    GoBWD;
-    delay(500);
-    GoLT;
-    delay(500);
+  case 1: // If left side out of black 
+    GoBWD(500);
+    GoRT(500);
     break;
-  case 2:
-    GoBWD;
-    delay(500);
-    GoRT;
-    delay(500);
+  case 2: // If right side out of black 
+    GoBWD(500);
+    GoLT(500);
     break;
-  case 3:
-    GoBWD;
-    delay(500);
+  case 3: // If all black
+    GoFWD(500);
     break;
   }
 }
